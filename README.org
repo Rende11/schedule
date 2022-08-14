@@ -18,6 +18,7 @@ npm install
 #+BEGIN_SRC
 npx shadow-cljs watch app
 #+END_SRC
+And ope ~localhost:3030~
 
 ** Notes and Assumptions
 - A deeper dive into graphs is needed to improve visualization
