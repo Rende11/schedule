@@ -6,25 +6,23 @@
             [schedule.model :as sm]
             [tick.core :as t]))
 
-
 (defn chart []
-  (let [sample-data @(rf/subscribe [::sm/text-area-filtered-edn-value])
-        [_ err] @(rf/subscribe [::sm/text-area-edn-value])
+  (let [[sample-data err] @(rf/subscribe [::sm/text-area-filtered-edn-value])
         selected-period @(rf/subscribe [::sm/selected-period])
         timeunit (if (#{:next-week} selected-period)
                    "dayhoursminutes"
                    "hoursminutes")]
-    [:div.ml-5
+    [:div.ml-5 {:class "w-2/3"}
      (if err
        [:div.text-center.mt-12 "Broken data..."]
        [oz/vega-lite
         {:data {:values (or sample-data [])}
-         :width "750"
+         :width "650"
          :height "650"
          :resize true
          :mark {:type "bar"
                 :color "#5046e4"
-                ;; Tooltip works badly
+                ;; Tooltip works bad
                 :tooltip true}
          :encoding {:x {:field :start
                         :timeUnit timeunit
@@ -40,9 +38,10 @@
 (defn input-block
   []
   (let [[_ err] @(rf/subscribe [::sm/text-area-edn-value])]
-    [:div.m-5 {:class "min-w-[30%]"}
+    [:div.m-5
+     {:class "basis-1/3"}
      [:textarea.border-solid.border-2.border-indigo-600.rounded.p-2.w-full
-      {:style {"height" "90vh"}
+      {:style {"height" "85vh"}
        :on-change (fn [e]
                     (let [value (-> e .-target .-value )]
                       (rf/dispatch [::sm/set-text-area-value value])))
@@ -60,7 +59,7 @@
 
 (defn user-label [uid]
   (let [selected-user? @(rf/subscribe [::sm/selected-user? uid])]
-    [:button.p-1.my-1.border-solid.border-2.border-indigo-600.rounded
+    [:button..px-3.p-1.my-1.border-solid.border-2.border-indigo-600.rounded
      {:class (when selected-user?
                "bg-indigo-600 text-white")
       :on-click #(rf/dispatch [::sm/set-user-filter uid])}
@@ -68,7 +67,7 @@
 
 (defn select-user []
   (let [user-ids @(rf/subscribe [::sm/user-ids])]
-    [:div.flex.flex-col
+    [:div.flex.flex-col.w-24
      [user-label-all]
      (for [uid user-ids]
        ^{:key uid}
@@ -92,7 +91,7 @@
                 :value :next-week}]])
 
 (defn chart-bar []
-  [:div.m-5.flex
+  [:div.m-5.flex.grow
    [select-user]
    [:div
     [select-date]
@@ -105,9 +104,6 @@
     [input-block]
     [chart-bar]]])
 
-(defn ^:dev/after-load render []
-  (rdom/render [app] (.getElementById js/document "root")))
-
 
 (defn gen-interval [user-id from to amount]
   (for [n (range 0 amount)
@@ -116,13 +112,6 @@
               date-from (t/>> (t/at now (t/time from)) shift-period)
               date-to (t/>> (t/at now (t/time to)) shift-period)]]
     {:user-id user-id :start (js/Date. date-from) :end (js/Date. date-to)}))
-
-(comment
-  (js/Date. (t/instant (t/zoned-date-time (t/at (t/date (t/now)) (t/time "08:00")))))
-  (js/Date. (t/inst (t/at (t/date (t/now)) (t/time "08:00"))))
-  (js/Date. (t/at (t/date (t/now)) (t/time "08:00")))
-  (t/inst)
-  )
 
 (rf/reg-event-fx
  ::initialise
@@ -156,15 +145,11 @@
               (gen-interval "Fernando" "16:00" "17:30" 7)
               (gen-interval "Fernando" "18:00" "19:00" 7))))}}}))
 
+(defn ^:dev/after-load render []
+  (rdom/render [app] (.getElementById js/document "root")))
 
 (defn ^:export init
   []
   (rf/dispatch-sync [::initialise])
   (render))
 
-(comment
-  (t/now)
-  [{:start "2022-08-12T10:00:00.000Z" :end "2022-08-12T14:00:00.000Z" :user-id "Max"}]
-
-  
-  )
