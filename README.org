@@ -10,13 +10,14 @@ The purpose of the App is to visualize user availability intervals - for today, 
 - TailwildCSS
 
 ** Installation
-```
+#+BEGIN_SRC
 npm install
-```
+#+END_SRC
+
 ** Launch in dev mode
-```
+#+BEGIN_SRC
 npx shadow-cljs watch app
-```
+#+END_SRC
 
 ** Notes and Assumptions
 - A deeper dive into graphs is needed to improve visualization
