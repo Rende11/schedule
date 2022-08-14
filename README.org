@@ -1,0 +1,26 @@
+* User Availability Visualisation
+The purpose of the App is to visualize user availability intervals - for today, tomorrow and the next 7 days. You also have an editor for manually editing records.
+
+** Made with
+- Oz
+- Vega-lite
+- Shadow-cljs
+- Reagent
+- Re-Frame
+- TailwildCSS
+
+** Installation
+```
+npm install
+```
+** Launch in dev mode
+```
+npx shadow-cljs watch app
+```
+
+** Notes and Assumptions
+- A deeper dive into graphs is needed to improve visualization
+- Oz lib have bugs and not 100% corresponds to Vega
+- `Next week` simplified to next 7 days
+- Perhaps it was worth doing it without third-party libraries
+- Ready-made implementations worthy of attention - Google Calendar, Italki  
