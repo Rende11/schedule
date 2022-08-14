@@ -1,39 +1,41 @@
 (ns schedule.core
-  (:require [cljs.reader :as reader]
-            [cljs.tools.reader.edn :as edn]
-            [oz.core :as oz]
+  (:require [oz.core :as oz]
+            [cljs.pprint :as pprint]
             [re-frame.core :as rf]
-            [reagent.core :as r]
             [reagent.dom :as rdom]
             [schedule.model :as sm]
             [tick.core :as t]))
 
 
 (defn chart []
-  (let [[sample-data _] @(rf/subscribe [::sm/text-area-filtered-edn-value])
+  (let [sample-data @(rf/subscribe [::sm/text-area-filtered-edn-value])
+        [_ err] @(rf/subscribe [::sm/text-area-edn-value])
         selected-period @(rf/subscribe [::sm/selected-period])
         timeunit (if (#{:next-week} selected-period)
-                    "utc dayhoursminutes"
-                    "utc hoursminutes")]
-    [:div
-     [oz/vega-lite
-      {:data {:values (or sample-data [])}
-       :width 600
-       :height 500
-       :mark {:type "bar"
-              :color "#5046e4"
-              ;; Tooltip works badly
-              :tooltip true}
-       :encoding {:x {:field :start
-                      :timeUnit timeunit
-                      :type :temporal
-                      :title "From"}
-                  :x2 {:field :end
-                       :timeUnit timeunit 
-                       :type :temporal
-                       :title "To"}
-                  :y {:field :user-id
-                      :title "User"}}}]]))
+                   "dayhoursminutes"
+                   "hoursminutes")]
+    [:div.ml-5
+     (if err
+       [:div.text-center.mt-12 "Broken data..."]
+       [oz/vega-lite
+        {:data {:values (or sample-data [])}
+         :width "750"
+         :height "650"
+         :resize true
+         :mark {:type "bar"
+                :color "#5046e4"
+                ;; Tooltip works badly
+                :tooltip true}
+         :encoding {:x {:field :start
+                        :timeUnit timeunit
+                        :type :temporal
+                        :title "From"}
+                    :x2 {:field :end
+                         :timeUnit timeunit 
+                         :type :temporal
+                         :title "To"}
+                    :y {:field :user-id
+                        :title "User"}}}])]))
 
 (defn input-block
   []
@@ -46,7 +48,7 @@
                       (rf/dispatch [::sm/set-text-area-value value])))
        :value @(rf/subscribe [::sm/text-area-value])}]
      (when err
-       [:div err])]))
+       [:div.text-red-700 err])]))
 
 (defn user-label-all []
   (let [all-users-selected? @(rf/subscribe [::sm/all-users-selected?])]
@@ -106,75 +108,53 @@
 (defn ^:dev/after-load render []
   (rdom/render [app] (.getElementById js/document "root")))
 
+
+(defn gen-interval [user-id from to amount]
+  (for [n (range 0 amount)
+        :let [now (t/date (t/now))
+              shift-period (t/new-period n :days)
+              date-from (t/>> (t/at now (t/time from)) shift-period)
+              date-to (t/>> (t/at now (t/time to)) shift-period)]]
+    {:user-id user-id :start (js/Date. date-from) :end (js/Date. date-to)}))
+
+(comment
+  (js/Date. (t/instant (t/zoned-date-time (t/at (t/date (t/now)) (t/time "08:00")))))
+  (js/Date. (t/inst (t/at (t/date (t/now)) (t/time "08:00"))))
+  (js/Date. (t/at (t/date (t/now)) (t/time "08:00")))
+  (t/inst)
+  )
+
 (rf/reg-event-fx
  ::initialise
  (fn [_ _]
    {:db {:filter {:user-id #{}
-                   :period :today}
+                  :period :today}
          :text-area
          {:value
-          (str [{:start #inst "2022-08-14T10:00:00.000Z" :end #inst "2022-08-14T14:00:00.000Z" :user-id "Max"}
-                {:start #inst "2022-08-14T16:00:00.000Z" :end #inst "2022-08-14T18:00:00.000Z" :user-id "Max"}
-                {:start #inst "2022-08-15T12:00:00.000Z" :end #inst "2022-08-15T18:00:00.000Z" :user-id "Max"}
-                {:start #inst "2022-08-17T10:00:00.000Z" :end #inst "2022-08-17T18:00:00.000Z" :user-id "Max"}
-                {:start #inst "2022-08-18T10:00:00.000Z" :end #inst "2022-08-18T18:00:00.000Z" :user-id "Max"}
+          (with-out-str
+            (pprint/pprint
+             (concat
+              (gen-interval "Alex" "08:00" "12:00" 10)
+              (gen-interval "Alex" "13:00" "14:00" 10)
+              (gen-interval "Alex" "16:00" "18:00" 5)
 
-                {:start #inst "2022-08-14T16:30:00.000Z" :end #inst "2022-08-14T17:30:00.000Z" :user-id "Oleg"}
-                {:start #inst "2022-08-15T16:30:00.000Z" :end #inst "2022-08-15T17:30:00.000Z" :user-id "Oleg"}
-                {:start #inst "2022-08-16T16:30:00.000Z" :end #inst "2022-08-16T17:30:00.000Z" :user-id "Oleg"}
-                
-                {:start #inst "2022-08-14T08:00:00.000Z" :end #inst "2022-08-14T10:00:00.000Z" :user-id "Ann"}
-                {:start #inst "2022-08-14T11:00:00.000Z" :end #inst "2022-08-14T13:00:00.000Z" :user-id "Ann"}
-                {:start #inst "2022-08-15T14:00:00.000Z" :end #inst "2022-08-15T15:45:00.000Z" :user-id "Ann"}
-                {:start #inst "2022-08-15T16:00:00.000Z" :end #inst "2022-08-15T18:00:00.000Z" :user-id "Ann"}
-                {:start #inst "2022-08-15T19:00:00.000Z" :end #inst "2022-08-15T20:00:00.000Z" :user-id "Ann"}
-                {:start #inst "2022-09-16T10:30:00.000Z" :end #inst "2022-09-16T20:00:00.000Z" :user-id "Ann"}
-                {:start #inst "2022-09-17T10:30:00.000Z" :end #inst "2022-09-17T20:00:00.000Z" :user-id "Ann"}
-                {:start #inst "2022-09-18T10:30:00.000Z" :end #inst "2022-09-18T20:00:00.000Z" :user-id "Ann"}
-                {:start #inst "2022-09-19T10:30:00.000Z" :end #inst "2022-09-19T20:00:00.000Z" :user-id "Ann"}
-                {:start #inst "2022-09-20T10:30:00.000Z" :end #inst "2022-09-20T20:00:00.000Z" :user-id "Ann"}
+              (gen-interval "Max" "09:00" "11:00" 10)
+              (gen-interval "Max" "15:00" "18:00" 10)
+              (gen-interval "Max" "12:00" "13:00" 1)
 
-                {:start #inst "2022-08-14T10:00:00.000Z" :end #inst "2022-08-14T14:00:00.000Z" :user-id "MadMax"}
-                {:start #inst "2022-08-14T16:00:00.000Z" :end #inst "2022-08-14T18:00:00.000Z" :user-id "MadMax"}
-                {:start #inst "2022-08-15T12:00:00.000Z" :end #inst "2022-08-15T18:00:00.000Z" :user-id "MadMax"}
-                {:start #inst "2022-08-17T10:00:00.000Z" :end #inst "2022-08-17T18:00:00.000Z" :user-id "MadMax"}
-                {:start #inst "2022-08-18T10:00:00.000Z" :end #inst "2022-08-18T18:00:00.000Z" :user-id "MadMax"}
+              (gen-interval "Ann" "09:00" "12:30" 5)
+              (gen-interval "Ann" "14:00" "16:00" 5)
+              (gen-interval "Ann" "18:00" "20:00" 5)
+              (gen-interval "Ann" "21:00" "22:00" 2)
 
-                {:start #inst "2022-08-14T16:30:00.000Z" :end #inst "2022-08-14T17:30:00.000Z" :user-id "Fernando"}
-                {:start #inst "2022-08-15T16:30:00.000Z" :end #inst "2022-08-15T17:30:00.000Z" :user-id "Fernando"}
-                {:start #inst "2022-08-16T16:30:00.000Z" :end #inst "2022-08-16T17:30:00.000Z" :user-id "Fernando"}
-                
-                {:start #inst "2022-08-14T08:00:00.000Z" :end #inst "2022-08-14T10:00:00.000Z" :user-id "Nataly"}
-                {:start #inst "2022-08-14T11:00:00.000Z" :end #inst "2022-08-14T13:00:00.000Z" :user-id "Nataly"}
-                {:start #inst "2022-08-15T14:00:00.000Z" :end #inst "2022-08-15T15:45:00.000Z" :user-id "Nataly"}
-                {:start #inst "2022-08-15T16:00:00.000Z" :end #inst "2022-08-15T18:00:00.000Z" :user-id "Nataly"}
-                {:start #inst "2022-08-15T19:00:00.000Z" :end #inst "2022-08-15T20:00:00.000Z" :user-id "Nataly"}
-                {:start #inst "2022-09-16T10:30:00.000Z" :end #inst "2022-09-16T20:00:00.000Z" :user-id "Nataly"}
-                {:start #inst "2022-09-17T10:30:00.000Z" :end #inst "2022-09-17T20:00:00.000Z" :user-id "Nataly"}
-                {:start #inst "2022-09-18T10:30:00.000Z" :end #inst "2022-09-18T20:00:00.000Z" :user-id "Nataly"}
-                {:start #inst "2022-09-19T10:30:00.000Z" :end #inst "2022-09-19T20:00:00.000Z" :user-id "Nataly"}
-                {:start #inst "2022-09-20T10:30:00.000Z" :end #inst "2022-09-20T20:00:00.000Z" :user-id "Nataly"}
+              (gen-interval "Nataly" "07:00" "13:00" 7)
+              (gen-interval "Nataly" "14:00" "19:00" 7)
 
-                {:start #inst "2022-08-14T10:00:00.000Z" :end #inst "2022-08-14T14:00:00.000Z" :user-id "Bruce"}
-                {:start #inst "2022-08-14T16:00:00.000Z" :end #inst "2022-08-14T18:00:00.000Z" :user-id "Bruce"}
-                {:start #inst "2022-08-15T12:00:00.000Z" :end #inst "2022-08-15T18:00:00.000Z" :user-id "Bruce"}
-                {:start #inst "2022-08-17T10:00:00.000Z" :end #inst "2022-08-17T18:00:00.000Z" :user-id "Bruce"}
-                {:start #inst "2022-08-18T10:00:00.000Z" :end #inst "2022-08-18T18:00:00.000Z" :user-id "Bruce"}
-
-                {:start #inst "2022-08-14T16:30:00.000Z" :end #inst "2022-08-14T17:30:00.000Z" :user-id "Luke"}
-                {:start #inst "2022-08-15T16:30:00.000Z" :end #inst "2022-08-15T17:30:00.000Z" :user-id "Luke"}
-                {:start #inst "2022-08-16T16:30:00.000Z" :end #inst "2022-08-16T17:30:00.000Z" :user-id "Luke"}
-                
-                {:start #inst "2022-08-14T08:00:00.000Z" :end #inst "2022-08-14T10:00:00.000Z" :user-id "Zena"}
-                {:start #inst "2022-08-14T11:00:00.000Z" :end #inst "2022-08-14T13:00:00.000Z" :user-id "Zena"}
-                {:start #inst "2022-08-15T14:00:00.000Z" :end #inst "2022-08-15T15:45:00.000Z" :user-id "Zena"}
-                {:start #inst "2022-08-15T16:00:00.000Z" :end #inst "2022-08-15T18:00:00.000Z" :user-id "Zena"}
-                {:start #inst "2022-08-15T19:00:00.000Z" :end #inst "2022-08-15T20:00:00.000Z" :user-id "Zena"}
-                {:start #inst "2022-09-16T10:30:00.000Z" :end #inst "2022-09-16T20:00:00.000Z" :user-id "Zena"}
-                {:start #inst "2022-09-17T10:30:00.000Z" :end #inst "2022-09-17T20:00:00.000Z" :user-id "Zena"}
-                {:start #inst "2022-09-18T10:30:00.000Z" :end #inst "2022-09-18T20:00:00.000Z" :user-id "Zena"}
-                {:start #inst "2022-09-19T10:30:00.000Z" :end #inst "2022-09-19T20:00:00.000Z" :user-id "Zena"}
-                {:start #inst "2022-09-20T10:30:00.000Z" :end #inst "2022-09-20T20:00:00.000Z" :user-id "Zena"}])}}}))
+              (gen-interval "Fernando" "08:00" "09:00" 7)
+              (gen-interval "Fernando" "10:00" "12:00" 7)
+              (gen-interval "Fernando" "13:00" "15:00" 7)
+              (gen-interval "Fernando" "16:00" "17:30" 7)
+              (gen-interval "Fernando" "18:00" "19:00" 7))))}}}))
 
 
 (defn ^:export init

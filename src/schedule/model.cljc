@@ -90,27 +90,20 @@
 
 (rf/reg-sub
  ::text-area-filtered-edn-value
- :<-[::text-area-value]
+ :<-[::text-area-edn-value]
  :<-[::filters]
- (fn [[text filters] _]
-   (js/console.log "CALXS")
-   (try
-     (let [res (reader/read-string text)
-           period (:period filters)
-           period-match? (get period-mapping period identity)
-           user-id-param (:user-id filters)
-           user-id-match? (if (seq user-id-param)
-                            user-id-param
-                            any?)
-           _ (js/console.log period)
-           filtered (filter (fn [{:keys [user-id start end]}]
-                              (and (user-id-match? user-id)
-                                   (or (period-match? start)
-                                       (period-match? end)))) res)]
-       [filtered nil])
-     (catch js/Error e
-       (js/console.log e)
-       [nil (.-message e)]))))
+ (fn [[[schedule _err] filters] _]
+   (let [period (:period filters)
+         period-match? (get period-mapping period identity)
+         user-id-param (:user-id filters)
+         user-id-match? (if (seq user-id-param)
+                          user-id-param
+                          any?)
+         filtered (filter (fn [{:keys [user-id start end]}]
+                            (and (user-id-match? user-id)
+                                 (or (period-match? start)
+                                     (period-match? end)))) schedule)]
+     filtered)))
 
 (rf/reg-sub
  ::user-ids
@@ -120,23 +113,9 @@
         (map :user-id)
         (distinct))))
 
-
 (comment
-
-  @(rf/subscribe [::filters])
-
-  @(rf/subscribe [::text-area-filtered-edn-value])
-  
-  (every-pred {:a 1 :b 10})
-
-  
-  
-  (filter [{:a 1 :b 10}
-           {:a 2 :b 10}
-           {:a 1 :b 12}
-           ])
-  (t/= (t/date (t/now))
-       (t/date #inst "2022-08-13T10:00:00.000Z"))
+  @(rf/subscribe [::text-area-edn-value])
   )
+
 
 
