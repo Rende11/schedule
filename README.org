@@ -1,5 +1,6 @@
 * User Availability Visualisation
 The purpose of the App is to visualize user availability intervals - for today, tomorrow and the next 7 days. You also have an editor for manually editing records.
+[[https://schedule-rende11.vercel.app][Demo]]
 
 ** Made with
 - Oz
